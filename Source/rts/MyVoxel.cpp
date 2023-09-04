@@ -190,7 +190,7 @@ void AMyVoxel::UpdateProceduralMesh(UStaticMesh* NewMesh)
         TArray<FLinearColor> VertexColors;
 
         // Correctly iterate over PositionVertexBuffer
-        for (int32 i = 0; i < LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices(); ++i)
+        for (auto i = 0; i < LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices(); ++i)
                 {
                     FVector VertexPosition = FVector(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i));  // Explicit cast
                     NewVertices.Add(VertexPosition);
