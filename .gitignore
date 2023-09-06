@@ -72,3 +72,7 @@ Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+
+# Include this line to ignore Megascans 3D Assets in the Content folder
+Content/Megascans/3D_Assets/
