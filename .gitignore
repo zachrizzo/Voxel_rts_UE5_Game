@@ -76,3 +76,7 @@ DerivedDataCache/*
 
 # Include this line to ignore Megascans 3D Assets in the Content folder
 Content/Megascans/3D_Assets/
+
+
+# for Mac OS
+.DS_Store
