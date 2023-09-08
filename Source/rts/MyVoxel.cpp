@@ -201,3 +201,10 @@ void AMyVoxel::UpdateProceduralMesh(UStaticMesh* NewMesh)
         ProceduralMesh->CreateMeshSection_LinearColor(0, NewVertices, NewTrianglesArray, TArray<FVector>(), TArray<FVector2D>(), VertexColors, TArray<FProcMeshTangent>(), true);
     }
 }
+
+
+void AMyVoxel::SetGreedyMesh(const TArray<FVector>& NewVertices, const TArray<int32>& NewTriangles)
+{
+    // Update the mesh using the new greedy vertices and triangles
+    ProceduralMesh->CreateMeshSection_LinearColor(0, NewVertices, NewTriangles, TArray<FVector>(), TArray<FVector2D>(), TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
+}

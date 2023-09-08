@@ -21,7 +21,7 @@ public:
     virtual void Tick(float DeltaTime) override;
 
     void SetVisibleFaces( TArray<bool> visibilityFlags);
-
+    void SetGreedyMesh(const TArray<FVector>& NewVertices, const TArray<int32>& NewTriangles);
     void CreateCube(float CubeSize);
     
     UPROPERTY()
