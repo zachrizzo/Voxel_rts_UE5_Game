@@ -14,7 +14,7 @@ AMyVoxelWorld::AMyVoxelWorld() {
     GlobalTriangles.Empty();
     
     // Default grid size and voxel size
-    GridSize = FVector(200, 200,200);
+    GridSize = FVector(20, 20,20);
     VoxelSize = 100.0f;
     VoxelArrayWidth = GridSize.X;
     VoxelArrayHeight = GridSize.Y;
@@ -67,7 +67,7 @@ TArray<bool> AMyVoxelWorld::CalculateVisibilityFlags(int x, int y, int z) {
             for (bool flag : visibilityFlags) {
                 VisFlagsString.Append(flag ? TEXT("1, ") : TEXT("0, "));
             }
-            UE_LOG(LogTemp, Warning, TEXT("Voxel at (%d, %d, %d) - Visibility Flags: %s"), x, y, z, *VisFlagsString);
+//            UE_LOG(LogTemp, Warning, TEXT("Voxel at (%d, %d, %d) - Visibility Flags: %s"), x, y, z, *VisFlagsString);
         }
     }
     
@@ -129,23 +129,7 @@ void AMyVoxelWorld::GenerateNewVoxels()
         }
     }
 
-//    // Then, spawn the voxels and calculate visibility
-//    for (int x = 0; x < GridSize.X; ++x)
-//    {
-//        for (int y = 0; y < GridSize.Y; ++y)
-//        {
-//
-//            PopulateVoxelArray(x, y);
-////            for (int z = 0; z < GridSize.Z; ++z)
-////            {
-////                if (VoxelArray[x][y][z] == 1)
-////                {
-////                    SpawnVoxel(x, y, z, VoxelFolderName);
-////                }
-////            }
-//        }
-//
-//    }
+
     if (GreedyMeshActor && GreedyMeshActor->IsValidLowLevel() && GreedyMeshActor->GetWorld()) {
             GreedyMeshActor->Destroy();
         }
@@ -244,6 +228,8 @@ void AMyVoxelWorld::DestroySpawnedVoxels()
 void AMyVoxelWorld::BeginPlay()
 {
     Super::BeginPlay();
+    UE_LOG(LogTemp, Warning, TEXT("Vertices: %d"), GlobalVertices.Num());
+    UE_LOG(LogTemp, Warning, TEXT("Triangles: %d"), GlobalTriangles.Num());
 
 }
 
@@ -256,34 +242,48 @@ void AMyVoxelWorld::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 }
 
-
-
-void AMyVoxelWorld::GenerateGreedyMeshes()
-{
-    // Clear the existing vertices and triangles
-    GlobalVertices.Empty();
-    GlobalTriangles.Empty();
-    
-    // Destroy the previous mesh if it exists
-    if (GreedyMeshActor && GreedyMeshActor->IsValidLowLevel() && GreedyMeshActor->GetWorld()) {
-        GreedyMeshActor->Destroy();
+bool AMyVoxelWorld::ValidateMeshIntegrity() {
+    // Check if GlobalVertices or GlobalTriangles are empty
+    if (GlobalVertices.Num() == 0 || GlobalTriangles.Num() == 0) {
+        UE_LOG(LogTemp, Error, TEXT("Validation Failed: GlobalVertices or GlobalTriangles are empty."));
+        return false;
     }
 
-    // Create a single AMyVoxel actor for the entire grid
-    FVector Position(0, 0, 0);
-    GreedyMeshActor = GetWorld()->SpawnActor<AMyVoxel>(Position, FRotator::ZeroRotator);
+    // Check if the number of triangles is a multiple of 3 (since they should form complete faces)
+    if (GlobalTriangles.Num() % 3 != 0) {
+        UE_LOG(LogTemp, Error, TEXT("Validation Failed: GlobalTriangles count is not a multiple of 3."));
+        return false;
+    }
+
+    // Check for any null or zero vertices (optional, based on your use-case)
+    for (const FVector& vertex : GlobalVertices) {
+        if (vertex.IsZero()) {
+            UE_LOG(LogTemp, Error, TEXT("Validation Failed: Found zero vertex."));
+            return false;
+        }
+    }
+
+    // Additional checks can be added here
+
+    return true;  // If all checks pass, return true.
+}
+
+
+
+
+void AMyVoxelWorld::GenerateGreedyMeshes() {
+    // Clear existing vertices and triangles
+//    GlobalVertices.Empty();
+//    GlobalTriangles.Empty();
 
     // Generate the greedy mesh for the entire grid
-    for (int z = 0; z < GridSize.Z; ++z)
-    {
+    for (int z = 0; z < GridSize.Z; ++z) {
         TArray<bool> mask;
         mask.SetNumZeroed(GridSize.X * GridSize.Y);
 
         // Populate the mask for this layer
-        for (int x = 0; x < GridSize.X; ++x)
-        {
-            for (int y = 0; y < GridSize.Y; ++y)
-            {
+        for (int x = 0; x < GridSize.X; ++x) {
+            for (int y = 0; y < GridSize.Y; ++y) {
                 mask[x + y * GridSize.X] = VoxelArray[x][y][z] == 1;
             }
         }
@@ -291,16 +291,28 @@ void AMyVoxelWorld::GenerateGreedyMeshes()
         // Generate the mesh for this layer
         GenerateMeshFromMask(mask, z, GlobalVertices, GlobalTriangles);
     }
+    UE_LOG(LogTemp, Warning, TEXT("Vertices GenerateGreedyMeshes: %d"), GlobalVertices.Num());
+    UE_LOG(LogTemp, Warning, TEXT("Triangles GenerateGreedyMeshes: %d"), GlobalTriangles.Num());
 
-    // Finally, update the single VoxelActor with the complete mesh
-    SetGreedyMesh(GlobalVertices, GlobalTriangles);}
+    // Update the mesh
+    SetGreedyMesh(GlobalVertices, GlobalTriangles);
+    
+//    if (!ValidateMeshIntegrity()) {
+//            UE_LOG(LogTemp, Error, TEXT("Mesh validation failed after generating."));
+//        }
+}
 
 
 void AMyVoxelWorld::SetGreedyMesh(const TArray<FVector>& NewVertices, const TArray<int32>& NewTriangles)
 {
     // Update the mesh using the new greedy vertices and triangles
     GreedyProceduralMesh->CreateMeshSection_LinearColor(0, NewVertices, NewTriangles, TArray<FVector>(), TArray<FVector2D>(), TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
+
+    // Scale the mesh by a factor of 100 in all dimensions
+    FVector NewScale(100.0f, 100.0f, 100.0f);
+    GreedyProceduralMesh->SetWorldScale3D(NewScale);
 }
+
 
 
 bool AMyVoxelWorld::CanMerge(const TArray<bool>& mask, int x1, int y1, int x2, int y2, int width) {
@@ -312,6 +324,11 @@ bool AMyVoxelWorld::CanMerge(const TArray<bool>& mask, int x1, int y1, int x2, i
 void AMyVoxelWorld::GenerateMeshFromMask(const TArray<bool>& mask, int z, TArray<FVector>& Vertices, TArray<int32>& Triangles)
 {
     TArray<bool> maskCopy = mask;
+    //log the number of vertices and triangles
+    // Capture initial sizes of Vertices and Triangles
+        int initialVertexCount = Vertices.Num();
+        int initialTriangleCount = Triangles.Num();
+    
 
     for (int y = 0; y < GridSize.Y; ++y) {
         for (int x = 0; x < GridSize.X; ++x) {
@@ -370,6 +387,13 @@ void AMyVoxelWorld::GenerateMeshFromMask(const TArray<bool>& mask, int z, TArray
             }
         }
     }
+//    if (LayerToVertexCount.Contains(z)) {
+//        LayerToVertexCount[z] = Vertices.Num() - initialVertexCount;
+//    }
+//    if (LayerToTriangleCount.Contains(z)) {
+//        LayerToTriangleCount[z] = Triangles.Num() - initialTriangleCount;
+//    }
+
 }
 
 
@@ -415,15 +439,92 @@ void AMyVoxelWorld::AddFace(const FVector& v0, const FVector& v1, const FVector&
     Triangles.Add(BaseVertexIndex);
 }
 
-void AMyVoxelWorld::DestroyVoxel(int x, int y, int z) {
-    // Validate the input coordinates
-    if (x < 0 || x >= GridSize.X || y < 0 || y >= GridSize.Y || z < 0 || z >= GridSize.Z) {
+
+
+
+void AMyVoxelWorld::DestroyVoxel(FVector WorldPosition) {
+    // Convert world position to voxel coordinates
+    int voxelX = FMath::FloorToInt(WorldPosition.X / VoxelSize);
+    int voxelY = FMath::FloorToInt(WorldPosition.Y / VoxelSize);
+    int voxelZ = FMath::FloorToInt(WorldPosition.Z / VoxelSize);
+    //log the destroyed voxel
+    UE_LOG(LogTemp, Warning, TEXT("Destroyed Voxel at %s"), *WorldPosition.ToString());
+    // Validate the coordinates
+    if (voxelX < 0 || voxelX >= GridSize.X || voxelY < 0 || voxelY >= GridSize.Y || voxelZ < 0 || voxelZ >= GridSize.Z) {
         return;
     }
+    //log the destroyed voxel
+    UE_LOG(LogTemp, Warning, TEXT("Destroyed Voxel at %s"), *WorldPosition.ToString());
 
-    // Destroy the voxel in the internal representation
-    VoxelArray[x][y][z] = 0;
+    // Update the VoxelArray to mark this voxel as destroyed
+    VoxelArray[voxelX][voxelY][voxelZ] = 0;
+    
+    //log the number of vertices and triangles
+    UE_LOG(LogTemp, Warning, TEXT("Vertices: %d"), GlobalVertices.Num());
+    UE_LOG(LogTemp, Warning, TEXT("Triangles: %d"), GlobalTriangles.Num());
+    
+   
+//    GlobalVertices.Empty();
+//    GlobalTriangles.Empty();
 
-    // Regenerate the greedy mesh
+    // Recalculate visibility flags for surrounding voxels
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                int nx = voxelX + dx, ny = voxelY + dy, nz = voxelZ + dz;
+                if (nx >= 0 && nx < GridSize.X && ny >= 0 && ny < GridSize.Y && nz >= 0 && nz < GridSize.Z) {
+                    visibilityFlags3D[nx][ny][nz] = CalculateVisibilityFlags(nx, ny, nz);
+                }
+            }
+        }
+    }
+
+    // Generate the greedy meshes for the affected layers only
+    // Assuming z is the height coordinate
+//    for (int affectedZ = FMath::Max(0, voxelZ - 1); affectedZ <= FMath::Min(GridSize.Z - 1, voxelZ + 1); ++affectedZ) {
+//        // Make sure the key exists before removing mesh for layer
+//        if (LayerToVertexCount.Contains(affectedZ) && LayerToTriangleCount.Contains(affectedZ)) {
+//            RemoveMeshForLayer(affectedZ);
+//        }
+//        // Remove old vertices and triangles for the affected layer before regenerating
+//        RemoveMeshForLayer(affectedZ);
+//        // Regenerate mesh for the affected layer
+//        TArray<bool> mask;
+//        mask.SetNumZeroed(GridSize.X * GridSize.Y);
+//        for (int x = 0; x < GridSize.X; ++x) {
+//            for (int y = 0; y < GridSize.Y; ++y) {
+//                mask[x + y * GridSize.X] = VoxelArray[x][y][affectedZ] == 1;
+//            }
+//        }
+//        GenerateMeshFromMask(mask, affectedZ, GlobalVertices, GlobalTriangles);
+//    }
+    // Update the mesh
+    SetGreedyMesh(GlobalVertices, GlobalTriangles);
+    
+}
+
+
+void AMyVoxelWorld::UpdateVoxelGrid() {
+    // Logic to update your voxel grid and regenerate mesh
+    // You can call methods like GenerateNewVoxels() and GenerateGreedyMeshes() here.
     GenerateGreedyMeshes();
+    SetGreedyMesh(GlobalVertices, GlobalTriangles);
+}
+
+void AMyVoxelWorld::RemoveMeshForLayer(int layerZ) {
+//    if (LayerToVertexCount.Contains(layerZ) && LayerToTriangleCount.Contains(layerZ)) {
+//        int vertexCount = LayerToVertexCount[layerZ];
+//        int triangleCount = LayerToTriangleCount[layerZ];
+//        // Remove vertices for this layer
+//        if (vertexCount > 0 && GlobalVertices.Num() >= vertexCount) {
+//            GlobalVertices.RemoveAt(GlobalVertices.Num() - vertexCount, vertexCount, true);
+//        }
+//        // Remove triangles for this layer
+//        if (triangleCount > 0 && GlobalTriangles.Num() >= triangleCount) {
+//            GlobalTriangles.RemoveAt(GlobalTriangles.Num() - triangleCount, triangleCount, true);
+//        }
+//        // Optional: Remove the layer from the TMaps if it no longer exists
+//        LayerToVertexCount.Remove(layerZ);
+//        LayerToTriangleCount.Remove(layerZ);
+//    }
 }

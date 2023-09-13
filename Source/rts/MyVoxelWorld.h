@@ -64,9 +64,11 @@ public:
         const TArray<bool>& visibilityFlags,
         TArray<FVector>& Vertices, TArray<int32>& Triangles
     );
-    void DestroyVoxel(FVector WorldPosition);
+    
     TArray<bool> CalculateVisibilityFlags(int x, int y, int z);
     void GenerateGreedyMeshes();
+    bool ValidateMeshIntegrity();
+    void RemoveMeshForLayer(int layerZ);
 
 protected:
     virtual void BeginPlay() override;
@@ -77,5 +79,9 @@ public:
     void GenerateMeshFromMask(const TArray<bool>& mask, int z, TArray<FVector>& Vertices, TArray<int32>& Triangles);
 
     UFUNCTION(BlueprintCallable, Category = "VoxelEngine")
-    void DestroyVoxel(int x, int y, int z);
+    void DestroyVoxel(FVector WorldPosition);
+    
+    UFUNCTION(BlueprintCallable, Category = "VoxelEngine")
+    void UpdateVoxelGrid();
 };
+
